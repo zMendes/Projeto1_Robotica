@@ -20,15 +20,16 @@ from sensor_msgs.msg import LaserScan
 from std_msgs.msg import UInt8
 
 
+
 bridge = CvBridge()
 w_180 =  math.pi/3
 cv_image = None
 media = []
 centro = []
 atraso = 1.5E9 
-
 area = 0.0 
 isCar =  False
+
 
 check_delay = False 
 
@@ -40,9 +41,9 @@ def scanner(dado):
 def scaneou(dado):
 	global crash
 	crash = dado.data
-# A função a seguir é chamada sempre que chega um novo frame
+
+
 def roda_todo_frame(imagem):
-    print("frame")
     global cv_image
     global media
     global centro
@@ -52,7 +53,7 @@ def roda_todo_frame(imagem):
     imgtime = imagem.header.stamp
     lag = now-imgtime # calcula o lag
     delay = lag.nsecs
-    print("delay ", "{:.3f}".format(delay/1.0E9))
+
     if delay > atraso and check_delay==True:
         print("Descartando por causa do delay do frame:", delay)
         return 
@@ -68,17 +69,14 @@ def roda_todo_frame(imagem):
 
         depois = time.clock()
 
+        
     except CvBridgeError as e:
         print('ex', e)
-    
 if __name__=="__main__":
     rospy.init_node("cor")
 
     topico_imagem = "/kamera"
     
-    #	rosrun cv_camera cv_camera_node
-    #
-    # 	rosrun topic_tools relay  /cv_camera/image_raw/compressed /kamera
 
 
     recebedor = rospy.Subscriber(topico_imagem, CompressedImage, roda_todo_frame, queue_size=4, buff_size = 2**24)
@@ -98,8 +96,9 @@ if __name__=="__main__":
     try:
 
         while not rospy.is_shutdown():
+            key = cv2.waitKey(1) & 0xFF
 
-            vel = Twist(Vector3(0.07,0,0), Vector3(0,0,0))
+            vel = Twist(Vector3(0.07,0,0), Vector3(0,0,0))        
             if len(media) != 0 : 
                 if centro[1] - media[0] > 30:
                     vel = Twist(Vector3(0.07,0,0), Vector3(0,0,0.5))
@@ -113,15 +112,17 @@ if __name__=="__main__":
                 vel = Twist(Vector3(0,0,0), Vector3(0,0,0.6))
                 velocidade_saida.publish(vel)
                 isCar = False
-            if scann[0] != "inf" and scann[0]> 0 and  scann[0]< 0.3:
-                vel = Twist(Vector3(0.0,0,0), Vector3(0,0,0))
-                velocidade_saida.publish(vel)
-                rospy.sleep(1.5)
-                vel = Twist(Vector3(0,0,0), Vector3(0,0,w_180))
-                velocidade_saida.publish(vel)
-                rospy.sleep(3)
-                vel = Twist(Vector3(0.07,0,0), Vector3(0,0,0))
             
+            for i in range(len(scann)):
+                if i <= 89:
+                    if scann[i] != np.inf and scann[i]> 0.13 and  scann[i]< 0.25:
+                        vel = Twist(Vector3(0,0,0), Vector3(0,0,-w_180))
+
+                if i >= 270:
+                    if scann[i] != np.inf and scann[i]> 0.13 and  scann[i]< 0.25:
+                        vel = Twist(Vector3(0,0,0), Vector3(0,0,w_180))    
+
+                
             if crash ==1 or crash ==2:
                 vel = Twist(Vector3(0,0,0), Vector3(0,0,0))
                 velocidade_saida.publish(vel)
@@ -157,8 +158,7 @@ if __name__=="__main__":
                     rospy.sleep(2.0)
                     
                 crash = None
-            if area != 0:
-                print(area, "niceeeeeeeeeeeeeee")
+
             velocidade_saida.publish(vel)
             rospy.sleep(0.1)
 
